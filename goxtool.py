@@ -256,6 +256,14 @@ class WinOrderBook(Win):
         col_vol = COLOR_PAIR["book_vol"]
         col_own = COLOR_PAIR["book_own"]
 
+
+        # get threshold for ignoring small orders from config (if any)
+        hide_smallorder_threshold = self.gox.config.get_safe("goxtool", "hide_smallorder_threshold")
+        if len(hide_smallorder_threshold) > 0.6:
+            hide_smallorder_threshold = float(hide_smallorder_threshold)
+        else:
+            hide_smallorder_threshold = 0.6
+
         # print the asks
         # pylint: disable=C0301
         book = self.gox.orderbook
@@ -263,12 +271,14 @@ class WinOrderBook(Win):
         i = 0
         cnt = len(book.asks)
         while pos >= 0 and  i < cnt:
-            self.addstr(pos, 0,  goxapi.int2str(book.asks[i].price, book.gox.currency), col_ask)
-            self.addstr(pos, 12, goxapi.int2str(book.asks[i].volume, "BTC"), col_vol)
+            if float(goxapi.int2str(book.asks[i].volume, "BTC")) > hide_smallorder_threshold:
+                self.addstr(pos, 0,  goxapi.int2str(book.asks[i].price, book.gox.currency), col_ask)
+                self.addstr(pos, 12, goxapi.int2str(book.asks[i].volume, "BTC"), col_vol)
             ownvol = book.get_own_volume_at(book.asks[i].price)
             if ownvol:
                 self.addstr(pos, 28, goxapi.int2str(ownvol, "BTC"), col_own)
-            pos -= 1
+            if float(goxapi.int2str(book.asks[i].volume, "BTC")) > hide_smallorder_threshold:
+                pos -= 1
             i += 1
 
         # print the bids
@@ -276,12 +286,14 @@ class WinOrderBook(Win):
         i = 0
         cnt = len(book.bids)
         while pos < self.height and  i < cnt:
-            self.addstr(pos, 0,  goxapi.int2str(book.bids[i].price, book.gox.currency), col_bid)
-            self.addstr(pos, 12, goxapi.int2str(book.bids[i].volume, "BTC"), col_vol)
+            if float(goxapi.int2str(book.bids[i].volume, "BTC")) > hide_smallorder_threshold:
+                self.addstr(pos, 0,  goxapi.int2str(book.bids[i].price, book.gox.currency), col_bid)
+                self.addstr(pos, 12, goxapi.int2str(book.bids[i].volume, "BTC"), col_vol)
             ownvol = book.get_own_volume_at(book.bids[i].price)
             if ownvol:
                 self.addstr(pos, 28, goxapi.int2str(ownvol, "BTC"), col_own)
-            pos += 1
+            if float(goxapi.int2str(book.bids[i].volume, "BTC")) > hide_smallorder_threshold:
+                pos += 1
             i += 1
 
     def slot_changed(self, book, dummy_data):
