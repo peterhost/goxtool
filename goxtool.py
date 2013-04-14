@@ -73,6 +73,7 @@ COLORS =    [["con_text",       curses.COLOR_BLUE,    curses.COLOR_CYAN]
 
 COLOR_PAIR = {}
 
+
 def init_colors():
     """initialize curses color pairs and give them names. The color pair
     can then later quickly be retrieved from the COLOR_PAIR[] dict"""
@@ -81,6 +82,37 @@ def init_colors():
         curses.init_pair(index, fore, back)
         COLOR_PAIR[name] = curses.color_pair(index)
         index += 1
+
+def load_user_colors(gox):
+    """load user defined colors from config (if any)
+
+     * Config lines of the type :
+          "name" "[background color]/[foreground color]"
+
+       background color & foreground color can be any of (case insensitive, whitespace
+       allowed) : BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE
+
+       EX : "book_vol" "green,black"
+
+    * COLORS is in the global scope -> write to it directly
+
+    * Curses relies on 8 color codes for FG/BG : """
+    colorcodes = {'BLACK': 0, 'RED': 1, 'GREEN': 2, 'YELLOW': 3,
+                  'BLUE': 4, 'MAGENTA': 5, 'CYAN': 6, 'WHITE': 7}
+
+    for i in range(len(COLORS)):
+        """ don't create unnecessary options in user config in case of save()
+        cf. class GoxConfig, _default method """
+        if gox.config.get_safe("goxtool", str(COLORS[i][0]) ) != "":
+            user_fgbg = gox.config.get_safe("goxtool", COLORS[i][0]).upper()
+            user_fgbg = [x.strip() for x in user_fgbg.split(',')]
+
+            """ fail silently if unrecognized color name in config"""
+            if user_fgbg[0] in colorcodes:
+                COLORS[i][1] = colorcodes[user_fgbg[0]]
+                COLORS[i][2] = colorcodes[user_fgbg[1]]
+
+
 
 class Win:
     """represents a curses window"""
@@ -972,9 +1004,12 @@ def main():
     def curses_loop(stdscr):
         """This code runs within curses environment"""
 
-        init_colors()
 
         gox = goxapi.Gox(secret, config)
+
+        """ load before init """
+        load_user_colors(gox)
+        init_colors()
 
         conwin = WinConsole(stdscr, gox)
         bookwin = WinOrderBook(stdscr, gox)
